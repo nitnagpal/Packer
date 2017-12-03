@@ -1,0 +1,70 @@
+{
+  "variables": {
+    "aws_region": "ap-south-1",
+    "aws_credentials_profile": "default",
+    "aws_instance_type": "t2.nano",
+    "ssh_username": "ec2-user",
+    "name": "my-base-image",
+    "description": "My Base Image",
+    "ansible_playbook": "playbook.yml"
+  },
+  "builders": [{
+    "type": "amazon-ebs",
+    "region": "{{user `aws_region`}}",
+    "profile": "{{user `aws_credentials_profile`}}",
+    "instance_type": "{{user `aws_instance_type`}}",
+    "ssh_username": "{{user `ssh_username`}}",
+    "ami_name": "{{user `name`}}",
+    "force_deregister": true,
+    "force_delete_snapshot": true,
+    "tags": {
+      "Name": "{{user `name`}}",
+      "Created": "{{isotime \"2006-01-02\"}}",
+      "Packer": true,
+      "OS": "AmazonLinux",
+      "Release": "Latest",
+      "Description": "{{user `description`}}"
+    },
+    "run_tags": {
+      "Name": "packer-instance-{{isotime \"2006-01-02\"}}",
+      "Packer": true
+    },
+    "run_volume_tags": {
+      "Name": "packer-instance-{{isotime \"2006-01-02\"}}",
+      "Packer": true
+    },
+    "launch_block_device_mappings": [{
+      "device_name": "/dev/xvda",
+      "volume_size": 8,
+      "volume_type": "standard",
+      "delete_on_termination": true
+    }],
+    "ami_block_device_mappings": [{
+      "device_name": "/dev/xvda",
+      "volume_size": 8,
+      "volume_type": "standard",
+      "delete_on_termination": true
+    }],
+    "source_ami_filter": {
+      "filters": {
+        "virtualization-type": "hvm",
+        "name": "*amzn-ami-hvm-2017.09*",
+        "root-device-type": "ebs"
+      },
+      "most_recent": true
+    }
+  }],
+  "provisioners": [{
+      "type": "shell",
+      "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo {{ .Path }} {{user `name`}}",
+      "script": "custom-script.sh"
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "{{user `ansible_playbook`}}",
+      "user": "ec2-user",
+      "extra_arguments": "-vv",
+      "ansible_env_vars": ["ANSIBLE_HOST_KEY_CHECKING=False"]
+    }
+  ]
+}
